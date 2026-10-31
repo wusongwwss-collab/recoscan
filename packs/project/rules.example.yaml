@@ -1,0 +1,53 @@
+# =====================================================================
+# Easur Open · 项目体检规则包示例（packs/project/rules.example.yaml）
+# ---------------------------------------------------------------------
+# 定位：展示性示例 —— 把引擎（加载阶段）逐字段映射到 core/js 内置判据的
+#       声明式投影，便于使用者看懂「体检是怎么算出来的」并做自定义改参。
+#       本文件本身不参与运行时计算；引擎加载阶段按字段对接（五接：指标权重、
+#       风险阈值、护栏上限、抽取参数、归因策略）。
+# 配套：core/js/project-ontology.js（抽取与归因计分）
+#       core/js/reco-engine.js（规则包校验：yishu.discovery/v1 载荷）
+#       hosts/mcp/project_server.mjs（工具 rules.validate 可校验本包结构）
+# =====================================================================
+
+schema: easur.project-check/v1        # 包 schema 闭集标识（换版须同批扩校验白名单）
+
+# ---------- 一接：指标权重（归因计分五因子，与 scoreProjects 逐字对应） ----------
+# 说明：会议/台账实体 vs 项目画像的计分口径；权重为整数，正值有效。
+metrics:
+  entity_name_exact: 3        # 实体名完全命中项目实体池（+3，最强证据）
+  entity_alias: 2             # 命中项目别名（+2）
+  alias_to_entity: 1          # 会议实体别名对应到项目实体名（+1）
+  term_overlap: 1             # 术语重合（+1）
+  org_in_history_title: 2     # 公司名出现在项目历史标题/台账文本（+2）
+
+# ---------- 二接：风险阈值（归因分 + 台账状态合成风险等级） ----------
+risk_thresholds:
+  high_min: 6                 # 归因分 ≥6 且命中失败/逾期信号 ⇒ 高风险
+  medium_min: 3               # ≥3，或命中临期/证据缺失信号 ⇒ 中风险
+  low_min: 1                  # ≥1 ⇒ 低风险（有归因）；0 不入列
+
+# ---------- 三接：护栏上限（entityFileGraph 三上限投影；超限截断并明示 truncated） ----------
+guardrails:
+  max_entities: 300           # 实体节点 ≤300（按命中 count 降序保留）
+  max_assert_edges: 450       # 断言边 ≤450（按输入序保留）
+  max_file_edges: 600         # 实体-文件证据边 ≤600（按 count 降序保留）
+
+# ---------- 四接：抽取参数（extract 纯函数参数投影） ----------
+extraction:
+  quote_padding: 22           # 出处引用截取：命中位置前后各 22 字
+  subject_window: 14          # 主语回溯窗口：距动词 ≤14 字
+  object_max_len: 40          # 宾语截断：至句末截 40 字
+  term_min_len: 4             # 术语候选最小词长 4
+  term_max_len: 8             # 术语候选最大词长 8
+  term_min_freq: 2            # 术语入选最低词频 ≥2
+  terms_cap: 12               # 术语候选池上限 12
+  quoted_cap: 8               # 引号内专有词最多取 8 个
+
+# ---------- 五接：归因策略（体检卡证据与建议的装配口径） ----------
+attribution:
+  reasons_cap: 3              # 每项目最多展示 3 条归因理由（引擎内置同口径）
+  evidence_rows_cap: 10       # 体检卡每项目证据行上限
+  stale_days: 14              # 台账行超过 14 天未更新 ⇒ 记「证据陈旧」信号
+  deadline_soon_days: 3       # 截止日 3 天内未完成 ⇒ 记「临期」信号
+  overdue_is_high: true       # 已逾期且未完成 ⇒ 直接判高风险
