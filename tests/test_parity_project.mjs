@@ -19,13 +19,14 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const MAIN_PC = process.env.NW_MAIN_PC_CLIENT || 'C:/yice/negotiation-workbench/pc_client';
+// 主仓底本目录：经环境变量 NW_MAIN_PC_CLIENT 注入（parity 机闸在产品仓同机执行）；
+// 未注入或路径不存在 → 整体 skip（与 Python 侧 test_parity_meeting.py 的 skipif 同形）
+const MAIN_PC = process.env.NW_MAIN_PC_CLIENT || '';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OPEN_JS = path.join(HERE, '..', 'core', 'js');
 
-// 主仓底本缺失 → 整体 skip（与 Python 侧 test_parity_meeting.py 的 skipif 同形）
 if (!fs.existsSync(path.join(MAIN_PC, 'reco-engine.js'))) {
-  console.log(`SKIP 主仓底本不存在（parity 机闸需同机执行）：${MAIN_PC}`);
+  console.log('SKIP 主仓底本未注入（设 NW_MAIN_PC_CLIENT 指向底本目录后启用 parity 机闸）');
   process.exit(0);
 }
 
