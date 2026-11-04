@@ -55,7 +55,7 @@ const mustExist = [
   ['wb-skill', 'SKILL.md'], ['wb-skill', 'references', 'README.md'], ['wb-skill', 'templates', 'rules.example.yaml'], ['wb-skill', 'LICENSE'],
   ['wb-connector', 'connector-meta.json'], ['wb-connector', 'mcp.json'], ['wb-connector', 'icon.svg'],
   ['wb-connector', 'hosts', 'mcp', 'project_server.mjs'],
-  ['wb-connector', 'core', 'js', 'reco-engine.js'], ['wb-connector', 'core', 'js', 'project-ontology.js'], ['wb-connector', 'core', 'js', 'feedback.mjs'],
+  ['wb-connector', 'core', 'js', 'reco-engine.js'], ['wb-connector', 'core', 'js', 'project-ontology.js'], ['wb-connector', 'core', 'js', 'plan-engine.js'], ['wb-connector', 'core', 'js', 'feedback.mjs'],
   ['wb-connector', 'skills', 'SKILL.md'], ['wb-connector', 'LICENSE'],
 ];
 for (const seg of mustExist) ok(`产物存在 ${path.join(...seg)}`, existsSync(path.join(DIST, ...seg)));

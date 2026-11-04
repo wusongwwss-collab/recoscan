@@ -8,6 +8,9 @@
  *   check.analyze   项目台账（JSON/CSV 文本）→ 体检卡：风险等级/证据行/下一步建议（逐条带证据引用）
  *                   ＝ project-ontology.extract + scoreProjects + assertionGraph
  *   plan.suggest    台账状态/截止/依赖 → 排期建议（完成殿后、阻塞前置、临期优先）
+ *   plan.generate   项目计划台（v0.2）：知识库/项目资料目录直读（只读不落盘）→
+ *                   项目信号抽取 → 每项目健康摘要+下一步 3 条任务（动作+依据文件行+优先级）+风险提示
+ *                   ＝ plan-engine.generatePlan
  *   rules.validate  规则包结构校验（easur.project-check/v1 包；yishu.discovery/v1 载荷
  *                   走 reco-engine.normalizeRulePackage 两级校验）
  * 运行：node hosts/mcp/project_server.mjs（stdin/stdout 由 MCP 宿主接管）
@@ -24,6 +27,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const requireLocal = createRequire(path.join(HERE, 'project_server.mjs'));
 const ontology = requireLocal(path.join(HERE, '..', '..', 'core', 'js', 'project-ontology.js'));
 const reco = requireLocal(path.join(HERE, '..', '..', 'core', 'js', 'reco-engine.js'));
+const planEngine = requireLocal(path.join(HERE, '..', '..', 'core', 'js', 'plan-engine.js'));
 
 const SERVER_INFO = { name: 'easur-project-mcp', version: '1.0.0' };
 const PROTOCOL_VERSION = '2024-11-05';
@@ -376,6 +380,20 @@ const TOOLS = [
     },
   },
   {
+    name: 'plan.generate',
+    description: '项目计划台：直接读取知识库/项目资料目录（只读生成，不落盘、不联网、文件内容只抽样首 2KB），自动按目录名/文件名前缀归项目并抽取信号（活跃度/停滞/待办标记/版本残留/截止日期/跨项目引用），输出每个项目的健康摘要 + 下一步 3 条任务（动作+依据文件行+优先级）+ 风险提示',
+    inputSchema: {
+      type: 'object', required: ['path'],
+      properties: {
+        path: { type: 'string', description: '项目资料/知识库根目录路径（绝对路径；本工具只读该目录）' },
+        options: {
+          type: 'object',
+          description: '可选参数：staleDays（停滞阈值天，默认14）/ deadlineSoonDays（临期窗口天，默认7）/ maxFiles / maxDepth / sampleFilesPerProject / sampleBytes',
+        },
+      },
+    },
+  },
+  {
     name: 'rules.validate',
     description: '规则包结构校验：easur.project-check/v1 体检包逐节校验；yishu.discovery/v1 推荐规则载荷走引擎两级校验（好包通过/坏包整包丢弃/坏条跳过计数）',
     inputSchema: {
@@ -398,6 +416,10 @@ function toolCall(name, args) {
     case 'plan.suggest': {
       if (typeof a.ledger !== 'string') throw new Error('参数 ledger 须为台账文本字符串');
       return planSuggest(a.ledger);
+    }
+    case 'plan.generate': {
+      if (typeof a.path !== 'string' || !a.path.trim()) throw new Error('参数 path 须为目录路径字符串');
+      return planEngine.generatePlan(a.path, a.options);
     }
     case 'rules.validate':
       if (a.rules === undefined) throw new Error('参数 rules 缺失');

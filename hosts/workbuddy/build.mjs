@@ -42,7 +42,7 @@ mkdirSync(path.join(CONN, 'hosts', 'mcp'), { recursive: true });
 cpSync(path.join(ROOT, 'hosts', 'mcp', 'project_server.mjs'),
         path.join(CONN, 'hosts', 'mcp', 'project_server.mjs'));
 mkdirSync(path.join(CONN, 'core', 'js'), { recursive: true });
-for (const f of ['reco-engine.js', 'project-ontology.js', 'feedback.mjs']) {
+for (const f of ['reco-engine.js', 'project-ontology.js', 'plan-engine.js', 'feedback.mjs']) {
   cpSync(path.join(ROOT, 'core', 'js', f), path.join(CONN, 'core', 'js', f));
 }
 // 连接器包内附使用说明（YQ-1127 先例形态）与许可
