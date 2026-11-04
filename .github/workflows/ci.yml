@@ -17,6 +17,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node tests/test_feedback.mjs
+      - run: node tests/test_cli_feedback.mjs
+      - run: node tests/test_plan_engine.mjs
       - run: node tests/test_mcp_project.mjs
       - run: node tests/test_parity_project.mjs
       - run: node tests/test_workbuddy_recoscan.mjs
+      # YQ-1154 T1 机闸挂载（G2 PII parity / G5 CONTRIBUTING 双用途）
+      - run: node tests/test_pii_parity.mjs
+      - run: node tests/test_contributing_feedback.mjs
