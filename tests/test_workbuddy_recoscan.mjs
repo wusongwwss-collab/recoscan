@@ -30,7 +30,7 @@ for (const f of fields) {
 const headLines = head.split('\n').filter((l) => /^\S/.test(l));
 ok('YAML 头冒号后恰一空格', headLines.every((l) => /^[\w_]+: /.test(l)));
 ok('YAML 头值不加引号', headLines.every((l) => !/^[\w_]+: ["']/.test(l)));
-ok('display_name 为项目体检（命名铁律）', /display_name: 项目体检/.test(head));
+ok('display_name 为项目计划台（v0.2 重定位拍板名）', /display_name: 项目计划台/.test(head));
 ok('author 口径＝弈枢AI Easur Work', /author: 弈枢AI Easur Work/.test(head));
 
 // 2) connector-meta.json
