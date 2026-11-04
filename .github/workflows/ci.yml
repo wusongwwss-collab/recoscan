@@ -19,3 +19,4 @@ jobs:
       - run: node tests/test_feedback.mjs
       - run: node tests/test_mcp_project.mjs
       - run: node tests/test_parity_project.mjs
+      - run: node tests/test_workbuddy_recoscan.mjs

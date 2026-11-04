@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "recoscan": {
+      "command": "node",
+      "args": ["${CONNECTOR_DIR}/hosts/mcp/project_server.mjs"],
+      "env": {}
+    }
+  }
+}
