@@ -53,8 +53,8 @@ node <recoscan 仓库路径>/hosts/mcp/project_server.mjs
 
 - 项目体检规则：仓库内 `packs/project/rules.example.yaml`（指标权重 / 风险
   阈值 / 护栏上限 / 抽取参数，全字段中文注释；示例权重即引擎默认口径）；
-- 反馈流水（如宿主侧启用反馈 SDK）落 `.quickcue/feedback.jsonl`（位置可用
-  环境变量 `QUICKCUE_FEEDBACK_DIR` 覆盖）——删除该目录即可清除全部本地
+- 反馈流水（如宿主侧启用反馈 SDK）落 `.recoscan/feedback.jsonl`（位置可用
+  环境变量 `RECOSCAN_FEEDBACK_DIR` 覆盖）——删除该目录即可清除全部本地
   派生数据，本软件不写系统目录、不留注册表项。
 
 改规则流程：把 `rules.example.yaml` 复制为 `rules.custom.yaml` 修改成自己的

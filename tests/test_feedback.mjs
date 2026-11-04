@@ -10,7 +10,8 @@
  *   6) 原文残留检测：载荷含未槽位化手机号/邮箱 -> rejected:true + reason
  *
  * 纪律：落盘目录一律 fs.mkdtempSync(os.tmpdir()) 临时目录（测试数据隔离），
- * 另验证 QUICKCUE_FEEDBACK_DIR 环境变量覆盖面；跑完即清理。
+ * 另验证 RECOSCAN_FEEDBACK_DIR 环境变量覆盖面与旧名 QUICKCUE_FEEDBACK_DIR
+ * 兼容读取（命中打 stderr 提示）；跑完即清理。
  * 运行：node tests/test_feedback.mjs
  */
 import fs from 'node:fs';
@@ -36,7 +37,7 @@ const ok = (cond, msg) => { if (cond) pass += 1; else failures.push(msg); };
 const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg + `（实际=${JSON.stringify(a)} 期望=${JSON.stringify(b)}）`);
 
 function tmpDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'quickcue-fb-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'recoscan-fb-'));
 }
 function cleanup(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
@@ -47,10 +48,10 @@ function cleanup(dir) {
   const dir = tmpDir();
   const sdk = new FeedbackSdk({ feedbackDir: dir });
   ok(sdk.level === 'L0', '默认档位应为 L0');
-  const r = sdk.record('L1', { event_type: 'card_feedback', result: '对' });
+  const r = sdk.record('L1', { event_type: 'plan_feedback', result: 'adopted' });
   ok(r.dropped === true && typeof r.reason === 'string', `默认 L0 record 应丢弃并带 reason（实际=${JSON.stringify(r)}）`);
   ok(!fs.existsSync(path.join(dir, 'feedback.jsonl')), '默认 L0 不应产生落盘文件');
-  const u = sdk.prepareUpload('L1', { event_type: 'card_feedback', result: '对' });
+  const u = sdk.prepareUpload('L1', { event_type: 'plan_feedback', result: 'adopted' });
   ok(u.ok === false && u.rejected === true && u.reason.includes('L0'), `默认 L0 prepare_upload 应拒绝（实际=${JSON.stringify(u)}）`);
   cleanup(dir);
 }
@@ -86,7 +87,7 @@ ok(shouldAskConsent('junk') === true, '非对象 state 应回退为该问(true)'
   const dir = tmpDir();
   const sdk = new FeedbackSdk({ level: 'L1', feedbackDir: dir, packageVersion: '0.1.0', now: 1730000000 });
   const r = sdk.prepareUpload('L1', {
-    event_type: 'card_feedback', result: '不对', card_type: '客户问题速答',
+    event_type: 'plan_feedback', result: 'rejected', card_type: '下一步任务',
     utterance: '这句不该出现在载荷里',
   });
   ok(r.ok === true, `L1 prepare_upload 应通过（实际=${JSON.stringify(r)}）`);
@@ -94,12 +95,12 @@ ok(shouldAskConsent('junk') === true, '非对象 state 应回退为该问(true)'
     const up = r.upload;
     eq(Object.keys(up).sort(), ['event', 'level', 'package_version', 'schema', 'ts'], 'L1 载荷应只含五键');
     eq(Object.keys(up.event).sort(), ['card_type', 'result', 'type'], 'L1 event 应只含类型/点选/卡类型');
-    eq(up.event.result, '不对', 'L1 点选值应透传');
+    eq(up.event.result, 'rejected', 'L1 点选值应透传');
     eq(up.level, 'L1', 'L1 载荷应带档位');
     eq(up.package_version, '0.1.0', 'L1 载荷应带包版本');
     ok(!JSON.stringify(up).includes('这句不该出现'), '话术原文不入 L1 载荷');
   }
-  for (const v of ['对', '不对', '已处理']) {
+  for (const v of ['adopted', 'rejected', 'revised']) {
     const w = sdk.prepareUpload('L1', { event_type: 'card_feedback', result: v });
     ok(w.ok && w.upload.event.result === v, `点选值白名单「${v}」应透传`);
   }
@@ -111,13 +112,13 @@ ok(shouldAskConsent('junk') === true, '非对象 state 应回退为该问(true)'
   const dir = tmpDir();
   const sdk = new FeedbackSdk({ level: 'L2', feedbackDir: dir });
   const r = sdk.prepareUpload('L2', {
-    event_type: 'card_feedback', result: '已处理', card_type: '客户问题速答',
-    rule_delta: { rule_id: 'meeting.gate.max_per_meeting', field: 'max_per_meeting', before: 12, after: 8 },
-    script: '按坐席年费计，含全部功能模块',
+    event_type: 'plan_feedback', result: 'revised', card_type: '下一步任务',
+    rule_delta: { rule_id: 'plan.health.stale_days', field: 'stale_days', before: 14, after: 7 },
+    script: '按季度计，含全部功能模块',
   });
   ok(r.ok === true, 'L2 合法 delta 应通过');
   if (r.ok) {
-    eq(r.upload.rule_delta, { rule_id: 'meeting.gate.max_per_meeting', field: 'max_per_meeting', before: 12, after: 8 }, 'L2 delta 应逐字保留白名单字段');
+    eq(r.upload.rule_delta, { rule_id: 'plan.health.stale_days', field: 'stale_days', before: 14, after: 7 }, 'L2 delta 应逐字保留白名单字段');
     const dumped = JSON.stringify(r.upload);
     ok(!dumped.includes('按坐席年费计'), '话术原文不入 L2 载荷');
     ok(!dumped.includes('script'), 'script 键不入 L2 载荷');
@@ -133,23 +134,46 @@ ok(shouldAskConsent('junk') === true, '非对象 state 应回退为该问(true)'
 {
   const dir = tmpDir();
   const sdk = new FeedbackSdk({ level: 'L1', feedbackDir: dir, now: 1730000000 });
-  const r = sdk.record('L1', { event_type: 'card_feedback', result: '对', card_type: '卡' });
+  const r = sdk.record('L1', { event_type: 'plan_feedback', result: 'adopted', card_type: '下一步任务' });
   eq(r.dropped, false, 'record 应落盘');
   const rows = fs.readFileSync(r.path, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   eq(rows.length, 1, '应恰好一行 JSONL');
-  eq(rows[0].schema, 'quickcue.feedback/v1', '落盘行应带 schema');
+  eq(rows[0].schema, 'recoscan.feedback/v1', '落盘行应带 schema');
   eq(rows[0].level, 'L1', '落盘行应带档位');
-  eq(rows[0].payload.result, '对', '落盘行应带点选值');
+  eq(rows[0].payload.result, 'adopted', '落盘行应带点选值');
   cleanup(dir);
 }
 {
   const dir = tmpDir();
-  process.env.QUICKCUE_FEEDBACK_DIR = dir;
+  process.env.RECOSCAN_FEEDBACK_DIR = dir;
   const sdk = createFeedbackSdk({ level: 'L1' }); // 不注入 feedbackDir，走环境变量
-  const r = sdk.record('L1', { event_type: 'card_feedback', result: '对' });
+  const r = sdk.record('L1', { event_type: 'plan_feedback', result: 'adopted' });
   eq(r.dropped, false, '环境变量覆盖下 record 应落盘');
   ok(r.path.startsWith(dir), `落盘路径应在环境变量目录下（实际=${r.path}）`);
   ok(fs.existsSync(r.path), '环境变量覆盖面应真实产生文件');
+  delete process.env.RECOSCAN_FEEDBACK_DIR;
+  cleanup(dir);
+}
+{
+  // 旧名 QUICKCUE_FEEDBACK_DIR 兼容读取：仍生效 + 打一次 stderr 提示
+  const dir = tmpDir();
+  delete process.env.RECOSCAN_FEEDBACK_DIR;
+  process.env.QUICKCUE_FEEDBACK_DIR = dir;
+  const chunks = [];
+  const origWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = (c) => { chunks.push(String(c)); return true; };
+  let r;
+  try {
+    const sdk = createFeedbackSdk({ level: 'L1' });
+    r = sdk.record('L1', { event_type: 'plan_feedback', result: 'adopted' });
+  } finally {
+    process.stderr.write = origWrite;
+  }
+  eq(r.dropped, false, '旧名环境变量兼容读取下 record 应落盘');
+  ok(r.path.startsWith(dir), `旧名环境变量目录应生效（实际=${r.path}）`);
+  const notice = chunks.join('');
+  ok(notice.includes('QUICKCUE_FEEDBACK_DIR') && notice.includes('RECOSCAN_FEEDBACK_DIR'),
+    `旧名命中应打迁移提示（实际=${JSON.stringify(notice.slice(0, 120))}）`);
   delete process.env.QUICKCUE_FEEDBACK_DIR;
   cleanup(dir);
 }
@@ -214,7 +238,7 @@ ok(!sanitize('联系 13812345678；再联系 13812345678').includes('<PHONE_2>')
   ok(r.ok === false && r.rejected === true, 'L2/L3 载荷携带未槽位化手机号应拒绝');
   eq(r.reason, 'residue_detected(phone)', '拒绝 reason 应指明 phone 残留');
   const e = new FeedbackSdk({ level: 'L1', feedbackDir: dir })
-    .prepareUpload('L1', { event_type: 'card_feedback', result: '对', card_type: '联系 admin@corp.example 的人' });
+    .prepareUpload('L1', { event_type: 'plan_feedback', result: 'adopted', card_type: '联系 admin@corp.example 的人' });
   ok(e.ok === false && e.rejected === true, 'L1 载荷携带未槽位化邮箱应拒绝');
   eq(e.reason, 'residue_detected(email)', '拒绝 reason 应指明 email 残留');
   cleanup(dir);

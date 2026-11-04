@@ -1,21 +1,22 @@
 /**
- * feedback — QuickCue 反馈 SDK（JS 侧，与 core/py/feedback.py 接口面同形；
- * Easur Open 反馈组件）。
+ * feedback — RecoScan 项目计划台反馈 SDK（JS 侧，Easur Open 反馈组件）。
  * -------------------------------------------------------------------
  * 定位（组件设计长期约定）：
  *   遥测默认关、首启问一次、随时可关、说明白上行什么。
- *   反馈三档：L1=只回传结果卡点选（对/不对/已处理）；L2=加规则 delta；
- *   L3=加脱敏失败样例。
+ *   反馈三档：L1=只回传结果点选（采纳/否决/改判，英文码
+ *   adopted/rejected/revised）；L2=加规则 delta；L3=加脱敏失败样例。
  *
  * 职责边界：
  *   - 只做「档位状态机 + 本地落盘 + 上行预检与脱敏」，**不内置任何 UI、
- *     不内置任何网络调用**；上行动作归宿主/云端侧。
- *   - 本地落盘路径：`.quickcue/feedback.jsonl`（相对当前工作目录；目录可用
- *     环境变量 QUICKCUE_FEEDBACK_DIR 覆盖，与 PY 侧同名）。
+ *     不内置任何网络调用**；上行动作归 CLI（hosts/cli/feedback_cli.mjs）/
+ *     宿主/云端侧。
+ *   - 本地落盘路径：`.recoscan/feedback.jsonl`（相对当前工作目录；目录可用
+ *     环境变量 RECOSCAN_FEEDBACK_DIR 覆盖；旧变量 QUICKCUE_FEEDBACK_DIR
+ *     仍兼容读取，命中时打一次 stderr 提示，建议迁移新变量）。
  *   - sanitize 本地 PII 槽位化（手机号/金额/人名/公司名/邮箱），原文永不出本地；
  *     prepare_upload 对最终载荷做原文残留检测（未槽位化手机号/邮箱命中即拒绝）。
  *
- * 接口面（与 PY 侧同形；camelCase 为主，snake_case 别名同义导出）：
+ * 接口面（camelCase 为主，snake_case 别名同义导出）：
  *   shouldAskConsent(state) / should_ask_consent   首启问一次纯函数（无 UI）
  *   sanitize(text, slots?)                         本地 PII 槽位化
  *   detectResidue(payload) / detect_residue        原文残留检测
@@ -28,19 +29,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const SDK_SCHEMA = 'quickcue.feedback/v1';
-export const SDK_VERSION = '0.1.0';
+export const SDK_SCHEMA = 'recoscan.feedback/v1';
+export const SDK_VERSION = '0.2.0';
 
 // 档位：L0=关（默认）；L1/L2/L3 逐档叠加（高档位内容包含低档位内容）
 export const LEVEL_ORDER = { L0: 0, L1: 1, L2: 2, L3: 3 };
 
-export const FEEDBACK_ENV_DIR = 'QUICKCUE_FEEDBACK_DIR';
+// 落盘目录环境变量：新名 RECOSCAN_FEEDBACK_DIR；旧名 QUICKCUE_FEEDBACK_DIR
+// 仅保留兼容读取（命中打一次 stderr 提示，读取优先级：新名 > 旧名 > 默认）
+export const FEEDBACK_ENV_DIR = 'RECOSCAN_FEEDBACK_DIR';
+export const LEGACY_FEEDBACK_ENV_DIR = 'QUICKCUE_FEEDBACK_DIR';
 
 // L2 规则 delta 只允许这些字段（结构层面保证「不含话术原文」）
 const RULE_DELTA_KEYS = ['rule_id', 'field', 'before', 'after'];
 
-// L1 结果卡点选值白名单（对 / 不对 / 已处理）
-const RESULT_VALUES = ['对', '不对', '已处理'];
+// L1 结果点选值白名单（项目计划台口径：采纳=adopted / 否决=rejected / 改判=revised；
+// 英文码即上行值，与服务端 RESULT_BY_PRODUCT['recoscan'] 白名单对齐——G6 parity 面）
+const RESULT_VALUES = ['adopted', 'rejected', 'revised'];
 
 // ------------------------------------------------------------------
 // 首启问一次（纯函数，无 UI、无副作用）
@@ -158,8 +163,21 @@ function nowIso(now) {
     'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
+let _legacyEnvNotified = false;
 export function defaultFeedbackDir() {
-  return process.env[FEEDBACK_ENV_DIR] || path.join(process.cwd(), '.quickcue');
+  const fresh = process.env[FEEDBACK_ENV_DIR];
+  if (fresh) return fresh;
+  const legacy = process.env[LEGACY_FEEDBACK_ENV_DIR];
+  if (legacy) {
+    if (!_legacyEnvNotified) {
+      _legacyEnvNotified = true;
+      process.stderr.write(
+        '[recoscan] 环境变量 ' + LEGACY_FEEDBACK_ENV_DIR + ' 为旧名（兼容读取中），' +
+        '请迁移为 ' + FEEDBACK_ENV_DIR + '；后续版本将移除旧名支持。\n');
+    }
+    return legacy;
+  }
+  return path.join(process.cwd(), '.recoscan');
 }
 
 export class FeedbackSdk {
@@ -184,7 +202,7 @@ export class FeedbackSdk {
     return path.join(this._dir || defaultFeedbackDir(), 'feedback.jsonl');
   }
 
-  /** record：本地落盘 .quickcue/feedback.jsonl（JSONL 追加一行）。 */
+  /** record：本地落盘 .recoscan/feedback.jsonl（JSONL 追加一行）。 */
   record(level, payload) {
     if (!(level in LEVEL_ORDER) || level === 'L0') {
       throw new Error('record 档位须为 L1/L2/L3，收到 ' + level);

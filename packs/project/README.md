@@ -42,19 +42,19 @@
 
 ## 反馈与隐私（默认关闭）
 
-反馈 SDK（本仓含 Node 侧实现 `core/js/feedback.mjs`；Python 侧 `core/py/feedback.py`
-接口同形）提供三档
+反馈 SDK（本仓含 Node 侧实现 `core/js/feedback.mjs`）提供三档
 匿名反馈，**默认关闭（L0）**：首启只问一次（包提供 `should_ask_consent(state)`
 纯函数，询问 UI 归宿主），随时可关。
 
 | 档位 | 上行内容 |
 | --- | --- |
-| L1 | 只回传结果卡点选：事件类型 + 结果卡点选值（对/不对/已处理）+ 卡类型 + 时间戳 + 包版本 |
+| L1 | 只回传结果点选：事件类型 + 结果点选值（采纳/否决/改判，英文码 adopted/rejected/revised）+ 卡类型 + 时间戳 + 包版本 |
 | L2 | L1 + 规则 delta（规则 id、改前值→改后值；字段白名单，不含话术原文） |
 | L3 | L2 + 本地脱敏后的失败样例 |
 
-- **本地落盘**：反馈流水一律先落本地 `.quickcue/feedback.jsonl`（目录可用环境变量
-  `QUICKCUE_FEEDBACK_DIR` 覆盖）；默认档 L0 时 `record` 直接丢弃（`dropped: true`）、
+- **本地落盘**：反馈流水一律先落本地 `.recoscan/feedback.jsonl`（目录可用环境变量
+  `RECOSCAN_FEEDBACK_DIR` 覆盖；旧名 `QUICKCUE_FEEDBACK_DIR` 兼容读取，
+  建议迁移新名）；默认档 L0 时 `record` 直接丢弃（`dropped: true`）、
   不产生文件。
 - **脱敏先行**：`sanitize` 在本机把手机号/金额/人名/公司名/邮箱槽位化为
   `<PHONE_N>`/`<AMOUNT_N>`/`<PERSON_N>`/`<ORG_N>`/`<EMAIL_N>`（同序号去重），
