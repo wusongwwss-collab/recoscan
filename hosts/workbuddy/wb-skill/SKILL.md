@@ -1,6 +1,6 @@
 ---
 name: recoscan
-display_name: 项目体检
+display_name: 项目体检台
 display_name_en: RecoScan
 description: 周会前先知道这个项目下周会在哪三件事上出事——台账喂进去，带证据引用的体检卡出来
 description_zh: 五个纯函数指标（承诺兑现率、阻塞时长、依赖未闭合、决策未落任务、变更密度）对项目台账做体检，每条风险带证据行与下一步建议，诊断与处方分开，不做根因预测
@@ -10,7 +10,7 @@ version: 0.1.0
 author: 弈枢AI Easur Work
 ---
 
-# 项目体检（RecoScan）
+# 项目体检台（RecoScan）
 
 周会前把项目台账喂进来，先知道**下周会在哪三件事上出事**。
 
