@@ -82,3 +82,7 @@ node hosts/cli/feedback_cli.mjs off    # 随时关
 ### 5. 规则包位置
 
 体检规则包在 `packs/project/rules.example.yaml`（指标权重 3/2/1/1/2、风险阈值、护栏 300/450/600、抽取参数等，字段全中文注释；示例权重即引擎默认口径）。用法路径见 `packs/project/README.md` 与 `skills/SKILL.md`。
+
+## 开源面与闭源面
+
+**开源面**＝纯函数引擎（`core/js/`，仅 Node 内置模块）、规则权重可改面（`packs/project/rules.example.yaml`——指标权重 / 风险阈值 / 抽取参数全部可改，示例即引擎默认口径）、MCP 壳（`hosts/mcp/project_server.mjs`，四工具全分析面、只读不落盘）、WorkBuddy 打包件（`hosts/workbuddy/` 与 `dist/` 产物）、全部测试；**闭源面**＝用户台账与项目资料数据（由用户提供，不落盘、不上传，永不入仓）、反馈上行通道（接收端与聚合分析属项目方运营面，不在本仓；客户端侧反馈 CLI 在仓内且默认关闭）、云端文档站（https://www.easurwork.cn/open-source/recoscan/ 为托管文档，其源不随仓库分发）。
