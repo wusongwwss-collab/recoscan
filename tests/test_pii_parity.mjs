@@ -58,7 +58,7 @@ for (const [node, expected] of STRUCT_FIXTURES) {
 // ---------------------------------------------------------------------------
 // parity 段：SDK vs 服务端正本（同 fixtures 全等；python 子进程实调）
 // ---------------------------------------------------------------------------
-const SERVER_ROOT = process.env.NW_OSS_FEEDBACK_SERVER_ROOT || 'C:\\yice\\negotiation-workbench';
+const SERVER_ROOT = process.env.NW_OSS_FEEDBACK_SERVER_ROOT || '';
 const SERVER_MODULE = path.join(SERVER_ROOT, 'app', 'oss_feedback_routes.py');
 
 const PY_SCRIPT = [
